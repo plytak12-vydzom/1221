@@ -799,6 +799,72 @@ function drawDial(){
 }
 
 /* --- hodiny: dvanáct dílků, dvě ručičky --- */
+  /* --- Fibonacciho čtverce a spirála --- */
+var FIB = [{"x":0,"y":0,"s":1,"a":[0,0],"b":[1,1],"sw":0},{"x":1,"y":0,"s":1,"a":[1,1],"b":[2,0],"sw":0},{"x":0,"y":-2,"s":2,"a":[2,0],"b":[0,-2],"sw":0},{"x":-3,"y":-2,"s":3,"a":[0,-2],"b":[-3,1],"sw":0},{"x":-3,"y":1,"s":5,"a":[-3,1],"b":[2,6],"sw":0},{"x":2,"y":-2,"s":8,"a":[2,6],"b":[10,-2],"sw":0},{"x":-3,"y":-15,"s":13,"a":[10,-2],"b":[-3,-15],"sw":0},{"x":-24,"y":-15,"s":21,"a":[-3,-15],"b":[-24,6],"sw":0}];
+var fibN = 3, fibPohled = null, fibAnim = null;
+
+function fibObalka(n){
+  var x0=1e9, y0=1e9, x1=-1e9, y1=-1e9;
+  for(var i = 0; i < n; i++){
+    var q = FIB[i];
+    x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y);
+    x1 = Math.max(x1, q.x+q.s); y1 = Math.max(y1, q.y+q.s);
+  }
+  var k = Math.min(180/(x1-x0), 122/(y1-y0));
+  return {k:k, ox: 100 - (x0+x1)/2*k, oy: 76 - (y0+y1)/2*k};
+}
+function kresliFib(v){
+  var svg = document.getElementById("fig-fib"); svg.innerHTML = "";
+  function P(x, y){ return [(v.ox + x*v.k).toFixed(2), (v.oy + y*v.k).toFixed(2)]; }
+  for(var i = 0; i < fibN; i++){
+    var q = FIB[i], a = P(q.x, q.y), sz = q.s*v.k, posl = i === fibN-1;
+    svg.appendChild(el("rect",{x:a[0], y:a[1], width:sz.toFixed(2), height:sz.toFixed(2),
+      fill: posl ? "var(--i21-fill)" : "var(--card)",
+      stroke: posl ? "var(--i21)" : "var(--rule-2)", "stroke-width": posl ? 1.4 : 1}));
+    if(sz > 13){
+      var t = el("text",{x:(+a[0] + sz/2).toFixed(1), y:(+a[1] + sz/2 + 3.6).toFixed(1),
+        "text-anchor":"middle", "font-family":"Archivo,sans-serif",
+        "font-size": Math.min(14, 6 + sz/9).toFixed(1),
+        fill: posl ? "var(--i21)" : "var(--text-3)", "font-weight": posl ? "600" : "400",
+        "pointer-events":"none"});
+      t.textContent = q.s; svg.appendChild(t);
+    }
+  }
+  var d = "";
+  for(i = 0; i < fibN; i++){
+    var o = FIB[i], s1 = P(o.a[0], o.a[1]), s2 = P(o.b[0], o.b[1]), r = (o.s*v.k).toFixed(2);
+    d += (i === 0 ? "M " + s1.join(",") : "") +
+         " A " + r + "," + r + " 0 0 " + o.sw + " " + s2.join(",");
+  }
+  svg.appendChild(el("path",{d:d, fill:"none", stroke:"var(--i21)", "stroke-width":1.8,
+    "stroke-linecap":"round"}));
+
+  var rada = FIB.slice(0, fibN).map(function(q){ return q.s; });
+  stat("stat-fib", rada.join(", ") + (fibN === FIB.length
+    ? " <em>— osmý člen je jednadvacet</em>" : " <em>— další je " + FIB[fibN].s + "</em>"));
+  ctl("ctl-fib", [1], function(){ return 0; }, function(){ fibDal(); },
+      function(){ return fibN >= FIB.length ? "Za\u010d\u00edt znovu" : "P\u0159idat \u010dtverec"; });
+}
+function fibDal(){
+  var od = fibPohled;
+  fibN = fibN >= FIB.length ? 3 : fibN + 1;
+  var cil = fibObalka(fibN);
+  if(fibAnim) cancelAnimationFrame(fibAnim);
+  if(!od || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)){
+    fibPohled = cil; kresliFib(cil); return;
+  }
+  var t0 = null;
+  function krok(ts){
+    if(t0 === null) t0 = ts;
+    var k = Math.min(1, (ts-t0)/520), e = 1 - Math.pow(1-k, 3);
+    fibPohled = {k: od.k + (cil.k-od.k)*e, ox: od.ox + (cil.ox-od.ox)*e,
+                 oy: od.oy + (cil.oy-od.oy)*e};
+    kresliFib(fibPohled);
+    if(k < 1) fibAnim = requestAnimationFrame(krok);
+  }
+  fibAnim = requestAnimationFrame(krok);
+}
+function drawFib(){ fibN = 3; fibPohled = fibObalka(fibN); kresliFib(fibPohled); }
 var hodinaCil = 0, hodinaPoz = 0, hodinaAnim = null;
 
 function kresliHodiny(){
@@ -1650,7 +1716,7 @@ document.getElementById("reset").onclick = function(){
 };
 document.getElementById("shuffle").onclick = renderPick;
 
-drawIdents(); drawAxes(); drawTri(); drawDial(); drawHodiny(); drawRuka();
+drawIdents(); drawAxes(); drawTri(); drawFib(); drawDial(); drawHodiny(); drawRuka();
 drawDodeca(); drawK7(); drawDie(); buildLegend(); kvizStart(); bjStart();
 renderPick(); render();
 })();
